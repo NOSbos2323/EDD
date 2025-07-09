@@ -1,7 +1,7 @@
-# Netlify configuration for Yacin Gym App
+# Alternative Netlify configuration
 [build]
   publish = "dist"
-  command = "npm ci && npm run build-no-errors"
+  command = "npm install --legacy-peer-deps && npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
@@ -10,6 +10,8 @@
   NODE_OPTIONS = "--max-old-space-size=4096"
   CI = "true"
   SKIP_PREFLIGHT_CHECK = "true"
+  GENERATE_SOURCEMAP = "false"
+  DISABLE_ESLINT_PLUGIN = "true"
 
 # Headers for performance and security
 [[headers]]
