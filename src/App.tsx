@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useRoutes } from "react-router-dom";
 import routes from "tempo-routes";
-import { NetworkIndicator } from "./components/ui/network-indicator";
+
 import { useOfflineSync } from "./hooks/useOfflineSync";
 
 // تحميل المكونات بشكل تدريجي لتحسين الأداء
@@ -68,9 +68,6 @@ function App() {
           <Route path="*" element={<LoginPage />} />
         </Routes>
       </Suspense>
-
-      {/* Network status indicator */}
-      <NetworkIndicator />
 
       {/* مؤشر حالة المزامنة */}
       {!syncStatus.isOnline && (
