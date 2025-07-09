@@ -348,6 +348,21 @@ export const deleteMember = async (id: string): Promise<void> => {
     // Remove member from database
     await membersDB.removeItem(id);
 
+    // Clear any offline sync data for this member to prevent restoration
+    try {
+      const offlineKeys = Object.keys(localStorage).filter(
+        (key) => key.startsWith("offline_") && key.includes(`member_${id}`),
+      );
+      offlineKeys.forEach((key) => localStorage.removeItem(key));
+
+      // Also remove any general offline member data
+      localStorage.removeItem(`offline_member_${id}`);
+
+      console.log(`Cleared offline data for member ${id}`);
+    } catch (offlineError) {
+      console.warn("Warning: Could not clear offline data:", offlineError);
+    }
+
     // Add deletion activity for audit trail
     await addActivity({
       memberId: id,

@@ -107,6 +107,22 @@ export const useOfflineSync = () => {
         try {
           const offlineData = JSON.parse(localStorage.getItem(key) || "{}");
 
+          // تحقق من وجود البيانات في قاعدة البيانات الرئيسية قبل الاستعادة
+          if (key.includes("member_")) {
+            const memberId = key.replace("offline_member_", "");
+            const { getMemberById } = await import("@/services/memberService");
+            const existingMember = await getMemberById(memberId);
+
+            // إذا لم يعد العضو موجوداً في قاعدة البيانات الرئيسية، احذف البيانات المحلية
+            if (!existingMember) {
+              localStorage.removeItem(key);
+              console.log(
+                `Removed orphaned offline data for deleted member: ${memberId}`,
+              );
+              continue;
+            }
+          }
+
           // هنا يمكن إضافة منطق المزامنة مع API خارجي إذا لزم الأمر
           // في الوقت الحالي، نحن نعتمد على التخزين المحلي فقط
 
@@ -135,27 +151,45 @@ export const useOfflineSync = () => {
   }, []);
 
   // تنظيف البيانات القديمة
-  const cleanupOldData = useCallback(() => {
+  const cleanupOldData = useCallback(async () => {
     try {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-      Object.keys(localStorage)
-        .filter((key) => key.startsWith("offline_"))
-        .forEach((key) => {
-          try {
-            const data = JSON.parse(localStorage.getItem(key) || "{}");
-            const dataDate = new Date(data.timestamp);
+      const offlineKeys = Object.keys(localStorage).filter((key) =>
+        key.startsWith("offline_"),
+      );
 
-            // حذف البيانات المتزامنة والقديمة
-            if (data.synced && dataDate < oneWeekAgo) {
-              localStorage.removeItem(key);
-            }
-          } catch (error) {
-            // حذف البيانات التالفة
+      for (const key of offlineKeys) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || "{}");
+          const dataDate = new Date(data.timestamp);
+
+          // حذف البيانات المتزامنة والقديمة
+          if (data.synced && dataDate < oneWeekAgo) {
             localStorage.removeItem(key);
+            continue;
           }
-        });
+
+          // تحقق من البيانات المحذوفة للأعضاء
+          if (key.includes("member_")) {
+            const memberId = key.replace("offline_member_", "");
+            const { getMemberById } = await import("@/services/memberService");
+            const existingMember = await getMemberById(memberId);
+
+            // إذا لم يعد العضو موجوداً، احذف البيانات المحلية
+            if (!existingMember) {
+              localStorage.removeItem(key);
+              console.log(
+                `Cleaned up orphaned offline data for deleted member: ${memberId}`,
+              );
+            }
+          }
+        } catch (error) {
+          // حذف البيانات التالفة
+          localStorage.removeItem(key);
+        }
+      }
     } catch (error) {
       console.error("خطأ في تنظيف البيانات:", error);
     }
