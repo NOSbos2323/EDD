@@ -68,18 +68,6 @@ function App() {
           <Route path="*" element={<LoginPage />} />
         </Routes>
       </Suspense>
-
-      {/* مؤشر حالة المزامنة */}
-      {!syncStatus.isOnline && (
-        <div className="fixed bottom-4 left-4 bg-yellow-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg border border-yellow-400/50 z-50">
-          🔄 وضع عدم الاتصال
-          {syncStatus.pendingChanges > 0 && (
-            <span className="ml-2 bg-white/20 px-2 py-1 rounded text-xs">
-              {syncStatus.pendingChanges} تغيير معلق
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
