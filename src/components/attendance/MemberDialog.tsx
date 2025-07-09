@@ -541,10 +541,21 @@ const MemberDialog = ({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    if (confirm("هل أنت متأكد من حذف هذا العضو؟")) {
-                      onDelete(member.id);
-                      onClose();
+                  onClick={async () => {
+                    if (
+                      confirm(
+                        "هل أنت متأكد من حذف هذا العضو؟ سيتم حذف جميع بياناته نهائياً.",
+                      )
+                    ) {
+                      try {
+                        await onDelete(member.id);
+                        onClose();
+                      } catch (error) {
+                        console.error("Error deleting member:", error);
+                        alert(
+                          "حدث خطأ أثناء حذف العضو. يرجى المحاولة مرة أخرى.",
+                        );
+                      }
                     }
                   }}
                   className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white flex-1 h-9 text-sm"

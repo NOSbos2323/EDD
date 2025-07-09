@@ -264,20 +264,47 @@ const MembersList = () => {
   };
 
   const handleDeleteMember = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذا العضو؟")) return;
-
     try {
+      // Find the member to get their name for the confirmation message
+      const memberToDelete = members.find((member) => member.id === id);
+      const memberName = memberToDelete?.name || "العضو";
+
+      // Show confirmation dialog with member name
+      if (
+        !confirm(
+          `هل أنت متأكد من حذف ${memberName}؟\n\nسيتم حذف جميع بياناته وسجل حضوره نهائياً ولا يمكن التراجع عن هذا الإجراء.`,
+        )
+      ) {
+        return;
+      }
+
+      // Delete the member from database
       await deleteMember(id);
-      setMembers(members.filter((member) => member.id !== id));
+
+      // Update the local state by filtering out the deleted member
+      setMembers((prevMembers) =>
+        prevMembers.filter((member) => member.id !== id),
+      );
+
+      // Show success message
       toast({
-        title: "تم الحذف",
-        description: "تم حذف العضو بنجاح",
+        title: "تم الحذف بنجاح",
+        description: `تم حذف ${memberName} وجميع بياناته نهائياً`,
       });
+
+      // Close any open dialogs
+      setIsEditDialogOpen(false);
+      setSelectedMember(undefined);
     } catch (error) {
       console.error("Error deleting member:", error);
+
+      // Show detailed error message
+      const errorMessage =
+        error instanceof Error ? error.message : "حدث خطأ غير متوقع";
+
       toast({
-        title: "خطأ",
-        description: "حدث خطأ أثناء حذف العضو",
+        title: "فشل في حذف العضو",
+        description: `خطأ: ${errorMessage}. يرجى المحاولة مرة أخرى.`,
         variant: "destructive",
       });
     }

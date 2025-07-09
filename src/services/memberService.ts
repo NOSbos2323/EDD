@@ -332,9 +332,37 @@ export const resetMemberSessions = async (
   return updatedMember;
 };
 
-// Delete a member
+// Delete a member with validation and cleanup
 export const deleteMember = async (id: string): Promise<void> => {
-  await membersDB.removeItem(id);
+  try {
+    if (!id || id.trim() === "") {
+      throw new Error("معرف العضو مطلوب للحذف");
+    }
+
+    // Check if member exists before deletion
+    const member = await getMemberById(id);
+    if (!member) {
+      throw new Error("العضو غير موجود أو تم حذفه مسبقاً");
+    }
+
+    // Remove member from database
+    await membersDB.removeItem(id);
+
+    // Add deletion activity for audit trail
+    await addActivity({
+      memberId: id,
+      memberName: member.name,
+      memberImage: member.imageUrl,
+      activityType: "other",
+      timestamp: new Date().toISOString(),
+      details: `تم حذف العضو ${member.name} نهائياً`,
+    });
+
+    console.log(`Member ${member.name} (ID: ${id}) deleted successfully`);
+  } catch (error) {
+    console.error("Error in deleteMember:", error);
+    throw error;
+  }
 };
 
 // Mark attendance for a member
