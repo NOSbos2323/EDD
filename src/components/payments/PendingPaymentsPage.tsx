@@ -8,7 +8,12 @@ import {
   Save,
   X,
 } from "lucide-react";
-import { getAllMembers, Member, updateMember } from "@/services/memberService";
+import {
+  getAllMembers,
+  Member,
+  updateMember,
+  addMember,
+} from "@/services/memberService";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,15 +48,20 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
 
   // Helper function to hide notification dot for a member
   const hideNotificationDot = (memberId: string) => {
-    const seenNotifications = JSON.parse(
-      localStorage.getItem("seenMemberNotifications") || "[]",
-    );
-    if (!seenNotifications.includes(memberId)) {
-      seenNotifications.push(memberId);
-      localStorage.setItem(
-        "seenMemberNotifications",
-        JSON.stringify(seenNotifications),
+    try {
+      const seenNotifications = JSON.parse(
+        localStorage.getItem("seenMemberNotifications") || "[]",
       );
+      if (!seenNotifications.includes(memberId)) {
+        seenNotifications.push(memberId);
+        localStorage.setItem(
+          "seenMemberNotifications",
+          JSON.stringify(seenNotifications),
+        );
+        console.log(`Notification hidden for member: ${memberId}`);
+      }
+    } catch (error) {
+      console.error("Error hiding notification dot:", error);
     }
   };
 
@@ -60,6 +70,17 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
       setLoading(true);
       try {
         const members = await getAllMembers();
+        const today = new Date().toISOString().split("T")[0];
+
+        console.log("Today's date:", today);
+        console.log(
+          "All members:",
+          members.map((m) => ({
+            name: m.name,
+            startDate: m.membershipStartDate,
+            paymentStatus: m.paymentStatus,
+          })),
+        );
 
         // Filter members with pending payments or expired subscriptions
         const unpaidMembersList = members.filter((member) => {
@@ -72,19 +93,10 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
             member.sessionsRemaining === 0;
 
           // Check if subscription has ended based on membership type
-          // Only check date expiration for time-based memberships (not session-based)
+          // Check date expiration for monthly and bi-weekly memberships regardless of payment status
           const hasExpiredSubscription = (() => {
             if (!member.membershipStartDate || !member.membershipType)
               return false;
-
-            // Skip date-based expiration for session-based subscriptions
-            if (
-              member.subscriptionType === "13 حصة" ||
-              member.subscriptionType === "15 حصة" ||
-              member.subscriptionType === "30 حصة"
-            ) {
-              return false; // Only check sessions remaining for these types
-            }
 
             const startDate = new Date(member.membershipStartDate);
             const currentDate = new Date();
@@ -94,12 +106,14 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
               const fifteenDaysLater = new Date(startDate);
               fifteenDaysLater.setDate(fifteenDaysLater.getDate() + 15);
               return currentDate > fifteenDaysLater;
-            } else {
+            } else if (member.membershipType === "شهري") {
               // For monthly membership, add one month
               const oneMonthLater = new Date(startDate);
               oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
               return currentDate > oneMonthLater;
             }
+
+            return false;
           })();
 
           return (
@@ -110,6 +124,14 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
           );
         });
 
+        console.log(
+          "Unpaid members:",
+          unpaidMembersList.map((m) => ({
+            name: m.name,
+            startDate: m.membershipStartDate,
+            isToday: m.membershipStartDate === today,
+          })),
+        );
         setUnpaidMembers(unpaidMembersList);
       } catch (error) {
         console.error("Error fetching unpaid members:", error);
@@ -367,12 +389,41 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
                     </div>
                   ) : (
                     // View Mode
-                    <div className="space-y-3 relative">
+                    <div
+                      className="space-y-3 relative cursor-pointer"
+                      onClick={() => {
+                        // Hide the blue notification dot when member card is clicked
+                        hideNotificationDot(member.id);
+                        // Force re-render by updating state
+                        setUnpaidMembers((prev) => [...prev]);
+                      }}
+                    >
                       {/* Blue notification dot for new members (added today) */}
                       {(() => {
                         const today = new Date().toISOString().split("T")[0];
+
+                        // Check multiple date fields to determine if member was added today
                         const memberCreatedToday =
-                          member.membershipStartDate === today;
+                          member.membershipStartDate === today ||
+                          (member.lastAttendance &&
+                            member.lastAttendance === today) ||
+                          // Check if member ID suggests it was created today (timestamp-based IDs)
+                          (() => {
+                            try {
+                              const memberId = parseInt(member.id);
+                              if (!isNaN(memberId)) {
+                                const memberDate = new Date(memberId);
+                                const memberDateString = memberDate
+                                  .toISOString()
+                                  .split("T")[0];
+                                return memberDateString === today;
+                              }
+                            } catch (e) {
+                              // Ignore parsing errors
+                            }
+                            return false;
+                          })();
+
                         const seenNotifications = JSON.parse(
                           localStorage.getItem("seenMemberNotifications") ||
                             "[]",
@@ -380,14 +431,29 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
                         const notificationSeen = seenNotifications.includes(
                           member.id,
                         );
-                        return (
-                          memberCreatedToday &&
-                          !notificationSeen && (
-                            <div className="absolute -top-2 -right-2 w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-bluegray-800 z-10">
-                              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+
+                        // Show dot if member was created today and notification hasn't been seen
+                        const shouldShowDot =
+                          memberCreatedToday && !notificationSeen;
+
+                        // Debug logging
+                        console.log(`Member ${member.name} (${member.id}):`, {
+                          today,
+                          membershipStartDate: member.membershipStartDate,
+                          lastAttendance: member.lastAttendance,
+                          memberCreatedToday,
+                          notificationSeen,
+                          shouldShowDot,
+                        });
+
+                        if (shouldShowDot) {
+                          return (
+                            <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-20 animate-pulse">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
                             </div>
-                          )
-                        );
+                          );
+                        }
+                        return null;
                       })()}
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-medium text-white">
@@ -405,8 +471,9 @@ const PendingPaymentsPage = ({ onBack }: PendingPaymentsPageProps) => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => {
-                              // Hide the blue notification dot when member card is clicked
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Hide the blue notification dot when edit button is clicked
                               hideNotificationDot(member.id);
                               handleEditMember(member);
                             }}
