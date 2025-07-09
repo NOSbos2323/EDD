@@ -34,9 +34,6 @@ export default defineConfig({
                 maxEntries: 300,
                 maxAgeSeconds: 60 * 60 * 24 * 180, // 6 months
               },
-              cacheKeyWillBeUsed: async ({ request }) => {
-                return `${request.url}?v=1`;
-              },
             },
           },
           {
@@ -119,7 +116,6 @@ export default defineConfig({
             "@radix-ui/react-select",
             "@radix-ui/react-toast",
             "@radix-ui/react-avatar",
-            "@radix-ui/react-button",
           ],
           motion: ["framer-motion"],
           utils: ["localforage", "date-fns", "clsx", "tailwind-merge"],

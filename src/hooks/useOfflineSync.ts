@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { getAllMembers, getAllPayments } from "@/services/memberService";
+import { getAllMembers } from "@/services/memberService";
+import { getAllPayments } from "@/services/paymentService";
 
 interface SyncStatus {
   isOnline: boolean;

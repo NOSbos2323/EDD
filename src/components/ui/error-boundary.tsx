@@ -110,24 +110,24 @@ export function useErrorHandler() {
         event.reason?.name !== "NetworkError" &&
         event.reason?.name !== "TypeError"
       ) {
-        handleError(new Error(event.reason));
+        setError(new Error(event.reason));
       }
     };
 
-    const handleError = (event: ErrorEvent) => {
+    const handleErrorEvent = (event: ErrorEvent) => {
       console.error("خطأ JavaScript:", event.error);
       setError(event.error);
     };
 
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
-    window.addEventListener("error", handleError);
+    window.addEventListener("error", handleErrorEvent);
 
     return () => {
       window.removeEventListener(
         "unhandledrejection",
         handleUnhandledRejection,
       );
-      window.removeEventListener("error", handleError);
+      window.removeEventListener("error", handleErrorEvent);
     };
   }, []);
 
